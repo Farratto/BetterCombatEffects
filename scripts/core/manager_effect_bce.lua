@@ -11,7 +11,7 @@
 -- luacheck: globals  deleteSourceTurnHandler processSourceTurn addChangeStateHandler deleteState
 -- luacheck: globals deleteChangeStateHandler stateModified changeState activateState deactivateState removeState unregisterCombatant
 ------------------ ORIGINALS ------------------
-local addEffect = nil;
+local addEffectByTable = nil;
 ------------------ END ORIGINALS ------------------
 --
 -- CONSOLIDATED EFFECT QUERY HELPERS
@@ -38,7 +38,7 @@ local getEffectsByType = nil;
 ------------------ END CUSTOM BCE FUNTION HOOKS ------------------
 
 function onInit()
-    addEffect = EffectManager.addEffect;
+    addEffectByTable = EffectManager.addEffectByTable;
     getEffectsByType = EffectManager.getEffectsByType;
 
     EffectManager.registerEffectVar('sChangeState', {sDBType = 'string', sDBField = 'changestate', sDisplay = '[%s]'})
@@ -48,7 +48,7 @@ function onInit()
     -- If we don't override it resolves and I don't think we care if it is overridden if we are running a
     -- spported ruleset because we have a RulesetManager to select which version to call.
 
-    EffectManager.addEffect = EffectManagerBCE.customAddEffectPre;
+    EffectManager.addEffectByTable = EffectManagerBCE.customAddEffectPre;
     if User.getRulesetName() ~= '5E' then
         EffectManager.getEffectsByType = moddedGetEffectsByType;
     end
@@ -66,7 +66,7 @@ function onInit()
 end
 
 function onClose()
-    EffectManager.addEffect = addEffect;
+    EffectManager.addEffectByTable = addEffectByTable;
     if User.getRulesetName() ~= '5E' then
         EffectManager.getEffectsByType = getEffectsByType;
     end
@@ -158,15 +158,23 @@ function moddedGetEffectsByType(rActor, sEffectCompType, rFilterActor, bTargeted
     return tResults;
 end
 
-function customAddEffectPre(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg)
+function customAddEffectPre(vActor, rNewEffect, ...)
     BCEManager.chat('Add Effect Pre: ', rNewEffect.sName);
-    if not nodeCT or not rNewEffect or not rNewEffect.sName then
-        return addEffect(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg);
+    if not vActor or not rNewEffect or not rNewEffect.sName then
+        return addEffectByTable(vActor, rNewEffect, ...);
     end
+
+	--for backwards compatibility
+	local sUser = rNewEffect.sUser;
+	local bShowMsg = not rNewEffect.bSkipAnnounce;
+	local sIdentity = nil;
+	local rActor = ActorManager.resolveActor(vActor);
+	local nodeCT = DB.findNode(rActor.sCTNode);
+
     if EffectManagerBCE.onCustomPreAddEffect(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg) then
         return true;
     end
-    addEffect(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg);
+    addEffectByTable(vActor, rNewEffect, ...);
     local nodeEffect;
     if (not rNewEffect.sSource) then
         rNewEffect.sSource = '';
@@ -190,7 +198,7 @@ function customAddEffectPre(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg)
             EffectManagerBCE.addChangeStateHandler(nodeCT, nodeEffect);
             EffectManagerBCE.addSourceTurnHandler(nodeCT, nodeEffect);
             EffectManagerBCE.onCustomPostAddEffect(nodeCT, nodeEffect);
-            break
+            break;
         end
     end
 end
