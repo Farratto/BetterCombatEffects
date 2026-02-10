@@ -158,49 +158,28 @@ function moddedGetEffectsByType(rActor, sEffectCompType, rFilterActor, bTargeted
     return tResults;
 end
 
-function customAddEffectPre(vActor, rNewEffect, ...)
-    BCEManager.chat('Add Effect Pre: ', rNewEffect.sName);
-    if not vActor or not rNewEffect or not rNewEffect.sName then
-        return addEffectByTable(vActor, rNewEffect, ...);
+function customAddEffectPre(vActor, rEffect, ...)
+    BCEManager.chat('Add Effect Pre: ', rEffect.sName);
+    if not vActor or not rEffect or not rEffect.sName then
+        return addEffectByTable(vActor, rEffect, ...);
     end
+    local nodeCT = ActorManager.getCTNode(vActor);
 
-	--for backwards compatibility
-	local sUser = rNewEffect.sUser;
-	local bShowMsg = not rNewEffect.bSkipAnnounce;
-	local sIdentity = nil;
-	local rActor = ActorManager.resolveActor(vActor);
-	local nodeCT = DB.findNode(rActor.sCTNode);
-
-    if EffectManagerBCE.onCustomPreAddEffect(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg) then
+    if EffectManagerBCE.onCustomPreAddEffect(rEffect.sUser, nil, nodeCT, rEffect, not rEffect.bSkipAnnounce) then
         return true;
     end
-    addEffectByTable(vActor, rNewEffect, ...);
-    local nodeEffect;
-    if (not rNewEffect.sSource) then
-        rNewEffect.sSource = '';
-    end
-    if (not rNewEffect.sChangeState) then
-        rNewEffect.sChangeState = '';
-    end
-    if (not rNewEffect.sApply) then
-        rNewEffect.sApply = '';
-    end
-    for _, v in ipairs(DB.getChildList(nodeCT, 'effects')) do
-        if (DB.getValue(v, 'label', '') == rNewEffect.sName) and (DB.getValue(v, 'init', 0) == rNewEffect.nInit) and
-            (DB.getValue(v, 'duration', 0) == rNewEffect.nDuration) and (DB.getValue(v, 'source_name', '') == rNewEffect.sSource) and
-            (DB.getValue(v, 'apply', '') == rNewEffect.sApply) and (DB.getValue(v, 'changestate', '') == rNewEffect.sChangeState) then
-            if rNewEffect.nDuration ~= 0 and
-                (rNewEffect.sChangeState == 'rs' or rNewEffect.sChangeState == 're' or rNewEffect.sChangeState == 'srs' or
-                    rNewEffect.sChangeState == 'sre') then
-                DB.setValue(v, 'duration', 'number', rNewEffect.nDuration + 1);
-            end
-            nodeEffect = v;
-            EffectManagerBCE.addChangeStateHandler(nodeCT, nodeEffect);
-            EffectManagerBCE.addSourceTurnHandler(nodeCT, nodeEffect);
-            EffectManagerBCE.onCustomPostAddEffect(nodeCT, nodeEffect);
-            break;
+    local nodeEffect = addEffectByTable(vActor, rEffect, ...);
+    if nodeEffect then
+        if rEffect.nDuration ~= 0 and
+            StringManager.contains({ "rs", "re", "srs", "sre", }, rEffect.sChangeState) then
+            DB.setValue(nodeEffect, 'duration', 'number', rEffect.nDuration + 1);
         end
+        EffectManagerBCE.addChangeStateHandler(nodeCT, nodeEffect);
+        EffectManagerBCE.addSourceTurnHandler(nodeCT, nodeEffect);
+        EffectManagerBCE.onCustomPostAddEffect(nodeCT, nodeEffect);
     end
+
+    return nodeEffect;
 end
 ------------------ END OVERRIDES ------------------
 --
