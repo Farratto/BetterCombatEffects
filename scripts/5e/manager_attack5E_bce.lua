@@ -102,7 +102,7 @@ function getVision(rSource)
                 nTrueSight = tEffect.mod;
             elseif sDescriptor == 'devil\'s sight' or sDescriptor == 'devilsight' then
                 nDevilsSight = tEffect.mod;
-            elseif sDescriptor == 'tremoresense' then
+            elseif sDescriptor == 'tremorsense' then
                 nBlindSight = tEffect.mod;
             end
         end
